@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header>
+        <h1><a href="/">Gratitude App</a></h1>
+        <nav>
+            <% if (user) { %> 
+            <a href="/create-post">Create Post</a>
+            <a href="/logout">Log Out</a>
+                <% } else{%> 
+                    <a href ="/login">Log In</a>
+                    <%}%>
+        </nav>
+    </header>
+
+   
+   <main></main>
+   <form action ="/register" method="POST">
+    <% errors.forEach(error => { %>
+        <p class="notice"> <%= error %></p>
+    <% } ) %>
+   <fieldset>
+    <legend>Create an account</legend>
+    <label for="username"><small>Username</small></label>
+    <input type="text" id="username" name="username"> 
+    <label for="password"><small>Password</small></label>
+    <input type="text" id="password" name="password"> 
+    <br />
+    <button>Sign Up</button>
+    
+   </fieldset>
+</form>
+   <footer>
+   <small>&copy; Gratitude Log App</small> 
+   </footer>
+
+</body>
+</html>
