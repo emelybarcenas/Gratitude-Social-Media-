@@ -42,6 +42,7 @@ console.log(req.user)
 next()
 })
 
+//Render dashboard if logged in, render homepage if logged out
 app.get("/", (req, res) => {
     if (req.user){
         return res.render("dashboard")
@@ -52,9 +53,57 @@ app.get("/logout", (req, res) => {
     res.clearCookie("GratitudeApp")
     res.redirect("/")
 })
+
 app.get("/login", (req, res) =>{
     res.render("login")
 })
+
+app.post("/login", (req, res) =>{
+    
+    let errors = []
+   
+    let inputusername = req.body.username;
+    let password = req.body.password;
+   
+    //Input validation when trying to log in 
+    if (typeof inputusername !== "string") inputusername = ""
+    if (typeof password !== "string") inputusername = ""
+    if (inputusername.trim() == "") errors = ["Invalid username/password."]
+    if (inputusername.trim() == "") errors = ["Invalid username/password."]
+
+    if(errors.length){
+        return res.render("login",{errors})
+    }
+    //Checking if username and password are in database
+
+    const userInQuestionStatement = db.prepare("SELECT * FROM users WHERE USERNAME = ?")
+    const userInQuestion = userInQuestionStatement.get(inputusername)
+
+    if (!userInQuestion){
+         errors = ["Invalid username/password"]
+         return res.render("login", {errors})
+    }
+
+    //Checking if password matches what is in the database
+    const matchOrNot = bcrypt.compareSync(password,userInQuestion.password)
+    if (!matchOrNot){
+        errors = ["Invalid username/password"]
+        return res.render("login", {errors})
+   }
+
+   //Give them a cookie 
+   const tokenValue = jwt.sign({ exp: Math.floor(Date.now()/1000) + 60 * 60 * 24, userid: userInQuestion.id, username: userInQuestion.username}, process.env.JWTSECRET)
+   res.cookie ("GratitudeApp", tokenValue, {
+       httpOnly : true,
+       secure: true,
+       sameSite: "strict",
+       maxAge: 1000 * 60 * 60 * 24
+   })
+
+   res.redirect("/")
+
+})
+
 
 app.post("/register", (req, res) =>{
 const errors = []
@@ -69,10 +118,18 @@ if (!inputusername){ errors.push ("You must enter a username")}
 if(inputusername && inputusername.length < 3) { errors.push("Username must be at least 3 characters")}
 if(inputusername && inputusername.length > 12) { errors.push("Username cannot exceed 12 characters")}
 if(inputusername && !inputusername.match(/^[a-zA-Z0-9]+$/)){errors.push("Username contains invalid characters")}
+
+//Check if username exists already
+ const usernameStatement = db. prepare("SELECT * FROM users WHERE username =?")
+ const usernameCheck = usernameStatement.get(inputusername)
+
+ if(usernameCheck) errors.push("Username is already taken.")
+
 //Password validation
 if (!password){ errors.push ("You must enter a password")}
 if(!password && password.length < 8) { errors.push("Password must be at least 8 characters")}
 if(!password && password.length > 20) { errors.push("Password cannot exceed 20 characters")} 
+
 //If no errors, render homepage
 if (errors.length){
 return res.render("homepage", {errors})
@@ -102,9 +159,17 @@ res.cookie ("GratitudeApp", tokenValue, {
 })
 
 
-res.send("Thank you")
+res.redirect("/")
 })
 
+app.get("/create-post", (req, res) =>{
+    res.render("create-post")
+})
+app.post("/create-post", (req, res) =>{
+    console.log(req.body)
+    res.send("Thank you")
+
+})
 app.listen(3000, () =>{
     console.log("Server is running")
 })
