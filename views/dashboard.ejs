@@ -5,14 +5,19 @@
 
 <%- include('includes/header')%>
 <main>
-<h1>Welcome to your dashboard</h1>
-<h2>Your Entries: </h2>
+<h1>Hello, <%= user.username %></h1>
+<% if (posts.length == 0) { %>
+    <h2>You do not have any posts yet.</h2>
+<% } else { %>
+    <h2>Your Posts:</h2>
+<% } %>
+
 
     <% posts.forEach(post => { %>
         <a href="/post/<%= post.id %>" class="post-link">
         <button style="display: flex; flex-direction: column; width: 100%; height: auto; background-color: #f5f7ff; color: black" class="post-button" >
-            <strong style="margin: 5px;">Title: <%= post.title %></strong>
-            <p style="margin: 5px;"><%= new Date(post.createdDate).getMonth() + 1 %>/<%= new Date(post.createdDate).getDate() %>/<%= new Date(post.createdDate).getFullYear() %></p>
+            <strong style="margin: 5px;"><%= post.title %></strong>
+            <small style="margin: 5px;">Posted on <%= new Date(post.createdDate).getMonth() + 1 %>/<%= new Date(post.createdDate).getDate() %>/<%= new Date(post.createdDate).getFullYear() %></small>
             <p style="margin: 5px;"><%= post.body %></p>
         </button>
     <% }) %>

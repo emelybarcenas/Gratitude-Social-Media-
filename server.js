@@ -218,7 +218,8 @@ app.get("/post/:id", (req, res) => {
     }
         // Log the post object to verify it contains the expected data
         console.log(post); 
-    res.render("single-post", {post})
+        const isAuthor = post.authorid === req.user.userid
+    res.render("single-post", {post, isAuthor})
 
 })
 app.post("/create-post", mustBeLoggedIn, (req, res) =>{
@@ -239,22 +240,52 @@ app.post("/create-post", mustBeLoggedIn, (req, res) =>{
 
 })
 
-app.get("/edit/post/:id", (req, res) =>{
-    //Look up post in question
-        const statement = db.prepare("SELECT * FROM posts WHERE id = ?")
-        const post = statement.get(req.params.id)
+app.get("/edit-post/:id", mustBeLoggedIn, (req, res) =>{  
+    // Look up post in question  
+    const statement = db.prepare("SELECT * FROM posts WHERE id = ?")  
+    const post = statement.get(req.params.id)  
+   
+    // If not author, redirect to homepage  
+    if (post.authorid !== req.user.userid || !post) {  
+       return res.redirect("/"); // Redirect if user is not logged in or is not the author  
+    }  
+   
+    res.render("edit-post", {post})  
+ })  
+   
 
-console.log(post); // Check if the post is being returned from the database
-
+ app.post("/edit-post/:id", mustBeLoggedIn, (req, res) =>{  
+    // Look up post in question  
+    const statement = db.prepare("SELECT * FROM posts WHERE id = ?")  
+    const post = statement.get(req.params.id)  
+   
+    // If not author, redirect to homepage  
+    if (post.authorid !== req.user.userid || !post) {  
+       return res.redirect("/"); // Redirect if user is not logged in or is not the author  
+    }  
+   
+    // Update post  
+    const updateStatement = db.prepare("UPDATE posts SET title = ?, body = ? WHERE id = ?")  
+    updateStatement.run(req.body.title, req.body.body, req.params.id)  
+   
+    res.redirect("/post/" + req.params.id) // Redirect to the updated post  
+ })
+app.post("/delete-post/:id", mustBeLoggedIn, (req, res) =>{
+     
+    // Look up post in question  
+     const statement = db.prepare("SELECT * FROM posts WHERE id = ?")  
+     const post = statement.get(req.params.id)  
     
-    //If not author, redirect to homepage
-    if (!req.user || post.authorid !== req.user.userid || !post) {
-        return res.redirect("/"); // Redirect if user is not logged in or is not the author
-    }
+     // If not author, redirect to homepage  
+     if (post.authorid !== req.user.userid || !post) {  
+        return res.redirect("/"); // Redirect if user is not logged in or is not the author  
+     }  
 
-    res.render("edit-post", {post})
+     const deleteStatement = db.prepare("DELETE FROM posts WHERE id = ?")
+     deleteStatement.run(req.params.id)
+
+     res.redirect("/")
 })
-
 app.listen(3000, () =>{
     console.log("Server is running")
 })
