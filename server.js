@@ -1,5 +1,6 @@
 require ("dotenv").config()
 const jwt = require("jsonwebtoken")
+const sanitizeHTML = require("sanitize-html")
 const express = require("express")
 const db = require("better-sqlite3")("app.db")
 const bcrypt = require("bcrypt")
@@ -15,6 +16,16 @@ db.prepare(`
     password STRING NOT NULL
     )    
     `).run()
+
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS posts(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    createdDate TEXT,
+    title STRING NOT NULL,
+    body TEXT NOT NULL,
+    authorid INTEGER, 
+    FOREIGN KEY (authorid) REFERENCES users (id)
+    )`).run()
 })
 
 createTable()
@@ -45,7 +56,9 @@ next()
 //Render dashboard if logged in, render homepage if logged out
 app.get("/", (req, res) => {
     if (req.user){
-        return res.render("dashboard")
+        const postsStatement = db.prepare("SELECT * FROM posts WHERE authorid = ?")
+        const posts = postsStatement.all(req.user.userid)
+        return res.render("dashboard", {posts})
     }
 res.render("homepage")
 })
@@ -162,14 +175,86 @@ res.cookie ("GratitudeApp", tokenValue, {
 res.redirect("/")
 })
 
-app.get("/create-post", (req, res) =>{
+function mustBeLoggedIn(req, res, next){
+    if(req.user){
+        return next()
+    }
+    return res.redirect("/")
+}
+
+app.get("/create-post", mustBeLoggedIn, (req, res) =>{
     res.render("create-post")
 })
-app.post("/create-post", (req, res) =>{
-    console.log(req.body)
-    res.send("Thank you")
+//Validate post
+function sharedPostValidation(req){
+const errors = []
+
+let inputTitle = req.body.title
+let inputBody = req.body.body
+
+//Checking if not a string
+if (typeof inputTitle !== "string") inputTitle = ""
+if (typeof inputBody !== "string") inputBody = ""
+
+//Sanitize out html 
+inputTitle = sanitizeHTML(inputTitle.trim(),{allowedTags: [], allowedAttributes: {}})
+inputBody = sanitizeHTML(inputBody.trim(),{allowedTags: [], allowedAttributes: {}})
+
+//Checking if input empty
+if (!inputTitle){
+    errors.push("You must provide a title.")
+}
+if(!inputBody){
+    errors.push("You must provide content.")
+}
+return errors
+}
+
+app.get("/post/:id", (req, res) => {
+    const statement = db.prepare("SELECT posts.*, users.username FROM posts INNER JOIN users ON posts.authorid = users.id WHERE posts.id = ?")
+    const post = statement.get(req.params.id)
+    if (!post){
+        return res.redirect("/")
+    }
+        // Log the post object to verify it contains the expected data
+        console.log(post); 
+    res.render("single-post", {post})
 
 })
+app.post("/create-post", mustBeLoggedIn, (req, res) =>{
+    const errors = sharedPostValidation(req)
+    
+    if(errors.length){
+        return res.render("create-post", {errors})
+    }
+    
+    //Save into database
+    const ourStatement = db.prepare("INSERT INTO posts (title, body, authorid, createdDate) VALUES (?, ?, ?, ?) ")
+    const result = ourStatement.run(req.body.title, req.body.body, req.user.userid, new Date().toISOString())
+
+    const getPostStatement = db.prepare("SELECT * FROM posts WHERE ROWID = ?")
+    const realPost = getPostStatement.get(result.lastInsertRowid)
+
+    res.redirect(`/post/${realPost.id}`)
+
+})
+
+app.get("/edit/post/:id", (req, res) =>{
+    //Look up post in question
+        const statement = db.prepare("SELECT * FROM posts WHERE id = ?")
+        const post = statement.get(req.params.id)
+
+console.log(post); // Check if the post is being returned from the database
+
+    
+    //If not author, redirect to homepage
+    if (!req.user || post.authorid !== req.user.userid || !post) {
+        return res.redirect("/"); // Redirect if user is not logged in or is not the author
+    }
+
+    res.render("edit-post", {post})
+})
+
 app.listen(3000, () =>{
     console.log("Server is running")
 })
