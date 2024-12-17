@@ -48,7 +48,10 @@ app.get("/", (req, res) => {
     }
 res.render("homepage")
 })
-
+app.get("/logout", (req, res) => {
+    res.clearCookie("GratitudeApp")
+    res.redirect("/")
+})
 app.get("/login", (req, res) =>{
     res.render("login")
 })
